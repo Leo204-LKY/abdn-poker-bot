@@ -156,11 +156,13 @@ Python >= 3.10 is required, if you do not have it installed then follow the inst
 
 If you need any help setting up the environment then just ask, we'll be happy to help!
 
-1. Install dependencies:
+1. [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo?tool=cli) the repository with ``gh repo fork https://github.com/abdncs/poker``, or your preffered method.
+
+2. Install dependencies:
 ```bash
 python -m pip install -r requirements.txt
 ```
-2. Run the simulation:
+3. Run the simulation:
 ```bash
 python main.py
 ```
@@ -173,7 +175,7 @@ By default, it runs **1,000** matches and reports the best bot's win rate.
 - Good bet sizing could either reel your opponents in, or scare them off. Choosing a good size for what you want to achieve is a fundamental skill in poker.
 
 ## Submission
-- Submit your completed `main.py` file into the #hackathon-submissions channel in the AUCS discord.
+- Commit your completed bot to your fork of the [aucs-poker](https://github.com/abdncs/poker) repository.
 - Ensure to give a unique name to your bot by changing the `name` variable in `MyPlayer`.
 - Your bot should calculate each move in less than 1ms (millisecond).
 - If your bot crashes at any point it will automatically lose.
