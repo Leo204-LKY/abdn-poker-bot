@@ -1,3 +1,2 @@
 phevaluator
-tkinter
 pillow
