@@ -174,6 +174,8 @@ class TournamentUI:
         self._completed = 0
         self._bots: List[BotSpec] = []
         self._stats: dict[str, Stats] = {}
+        self._matchup_stats: dict[str, dict[str, Stats]] = {}
+        self._expanded_bots: set[str] = set()
 
         self._avatar_cache: dict[str, tk.PhotoImage] = {}
         self._left_avatar: Optional[tk.PhotoImage] = None
@@ -266,21 +268,23 @@ class TournamentUI:
         table_frame = ttk.Frame(mid)
         table_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=(10, 0))
 
-        columns = ('rank', 'name', 'played', 'wins', 'losses', 'winrate')
-        self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=18)
+        columns = ('rank', 'played', 'wins', 'losses', 'winrate')
+        self.tree = ttk.Treeview(table_frame, columns=columns, show='tree headings', height=18)
+        self.tree.heading('#0', text='Bot / Matchup')
         self.tree.heading('rank', text='#')
-        self.tree.heading('name', text='Bot')
         self.tree.heading('played', text='Played')
         self.tree.heading('wins', text='Wins')
         self.tree.heading('losses', text='Losses')
         self.tree.heading('winrate', text='Win %')
 
+        self.tree.column('#0', width=320, anchor=tk.W)
         self.tree.column('rank', width=40, anchor=tk.E)
-        self.tree.column('name', width=260, anchor=tk.W)
         self.tree.column('played', width=80, anchor=tk.E)
         self.tree.column('wins', width=80, anchor=tk.E)
         self.tree.column('losses', width=80, anchor=tk.E)
         self.tree.column('winrate', width=90, anchor=tk.E)
+        self.tree.bind('<<TreeviewOpen>>', self._on_tree_open)
+        self.tree.bind('<<TreeviewClose>>', self._on_tree_close)
 
         scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -312,12 +316,22 @@ class TournamentUI:
         if len(self._bots) < 2:
             self._pending_tasks = []
             self._stats = {}
+            self._matchup_stats = {}
+            self._expanded_bots.clear()
             self._refresh_table()
             self.status.config(text=f'Found {len(self._bots)} bot(s). Add at least 2 into {BOTS_DIR}.')
             self.match_title.config(text='Waiting for bots…')
             return
 
         self._stats = {b.name: Stats() for b in self._bots}
+        self._matchup_stats = {
+            bot.name: {
+                opponent.name: Stats()
+                for opponent in self._bots
+                if opponent.name != bot.name
+            }
+            for bot in self._bots
+        }
         matches_per_pair = int(self.matches_var.get())
         shuffle = bool(self.shuffle_var.get())
         self._pending_tasks = build_round_robin(self._bots, matches_per_pair, shuffle)
@@ -326,6 +340,7 @@ class TournamentUI:
         self._avatar_cache.clear()
         self._left_avatar = None
         self._right_avatar = None
+        self._expanded_bots.clear()
         self._refresh_table()
         self._set_current_match(None)
         self._update_status_line(final=False)
@@ -400,11 +415,15 @@ class TournamentUI:
                 if isinstance(payload, Exception):
                     self._stats[task.a.name].losses += 1
                     self._stats[task.b.name].losses += 1
+                    self._matchup_stats[task.a.name][task.b.name].losses += 1
+                    self._matchup_stats[task.b.name][task.a.name].losses += 1
                     self.status.config(text=f'Match error ({task.a.name} vs {task.b.name}): {payload}')
                 else:
                     winner, loser = payload
                     self._stats[winner].wins += 1
                     self._stats[loser].losses += 1
+                    self._matchup_stats[winner][loser].wins += 1
+                    self._matchup_stats[loser][winner].losses += 1
 
                 if local_count >= update_every:
                     self._refresh_table()
@@ -430,6 +449,12 @@ class TournamentUI:
         self._update_status_line(final=True)
 
     def _refresh_table(self) -> None:
+        open_states: dict[str, bool] = {}
+        for row in self.tree.get_children():
+            name = self.tree.item(row, 'text')
+            if name:
+                open_states[name] = bool(self.tree.item(row, 'open'))
+
         for row in self.tree.get_children():
             self.tree.delete(row)
 
@@ -439,14 +464,49 @@ class TournamentUI:
             reverse=True,
         )
         for idx, (name, s) in enumerate(ordered, start=1):
-            self.tree.insert('', tk.END, values=(
-                idx,
-                name,
-                s.played,
-                s.wins,
-                s.losses,
-                f"{s.win_rate * 100:.2f}",
-            ))
+            is_open = open_states.get(name, name in self._expanded_bots)
+            parent = self.tree.insert(
+                '',
+                tk.END,
+                text=name,
+                open=is_open,
+                values=(
+                    idx,
+                    s.played,
+                    s.wins,
+                    s.losses,
+                    f"{s.win_rate * 100:.2f}",
+                ),
+            )
+            for opponent, matchup in sorted(self._matchup_stats.get(name, {}).items()):
+                self.tree.insert(
+                    parent,
+                    tk.END,
+                    text=f'vs {opponent}',
+                    values=(
+                        '',
+                        matchup.played,
+                        matchup.wins,
+                        matchup.losses,
+                        f"{matchup.win_rate * 100:.2f}",
+                    ),
+                )
+
+    def _on_tree_open(self, _event: tk.Event) -> None:
+        item = self.tree.focus()
+        if not item or self.tree.parent(item):
+            return
+        name = self.tree.item(item, 'text')
+        if name:
+            self._expanded_bots.add(name)
+
+    def _on_tree_close(self, _event: tk.Event) -> None:
+        item = self.tree.focus()
+        if not item or self.tree.parent(item):
+            return
+        name = self.tree.item(item, 'text')
+        if name:
+            self._expanded_bots.discard(name)
 
     def _set_current_match(self, task: Optional[MatchTask]) -> None:
         if task is None:
