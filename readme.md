@@ -1,3 +1,10 @@
+> [!NOTE]
+> This is my contribution to the team *Default Name 3* for the AUCS Texas Hack'em event.  
+> For the actual participants in the hackathon, see [uaih3k9x/poker](https://github.com/uaih3k9x/poker),  
+> For the official repository, see [abdncs/poker](https://github.com/abdncs/poker).  
+> Please, our team name is *Default Name 3*, **NOT** Azalea.
+
+
 # AUCS: Texas Hack'em
 ![AUCS Logo](https://www.ausa.org.uk/asset/Organisation/26976/LogoColoured.png?thumbnail_width=480&thumbnail_height=100&resize_type=ResizeWidth)
 
@@ -200,3 +207,5 @@ I am fully aware that it is possible to use Python's garbage collector (among ot
 For example, while you could access the opponent's bot and override their move function to always fold, doing this just takes the fun out of the event for everyone involved (you'll also be disqualified).
 
 If you are unsure about anything or have any questions, ask a member of AUCS, we're happy to help!
+
+###### I am really disappointed that the team name I chose did not appear during the whole hackathon other than the registration form, which was replaced by the bot name. Sorry, but I feel this fails to acknowledge my contribution, so there is a note at the top of this readme.
